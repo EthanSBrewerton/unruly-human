@@ -409,7 +409,7 @@ export default function Home() {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ duration: 0.3 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative max-w-4xl w-full bg-white border border-gray-200 p-6 md:p-8 cursor-default my-8"
+              className="relative max-w-4xl w-full bg-white border border-gray-200 px-6 pb-6 pt-11 md:px-8 md:pb-8 md:pt-[52px] cursor-default my-8"
             >
               {/* Close button */}
               <button
