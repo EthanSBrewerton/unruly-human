@@ -278,8 +278,8 @@ export default function Home() {
             <p className="text-white/50 mb-8">Free shipping worldwide</p>
 
             {/* Size Selector */}
-            <div className="flex justify-center gap-3 mb-12">
-              {["S", "M", "L", "XL", "XXL"].map((size) => (
+            <div className="flex flex-wrap justify-center gap-3 mb-12">
+              {["S", "M", "L", "XL", "XXL", "3XL", "4XL"].map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
