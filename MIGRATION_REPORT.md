@@ -10,20 +10,24 @@
 
 Successfully migrated the Unruly Human Next.js application from the blocked ROY Vercel team to Ethan's Vercel account (`ethansbrewertons-projects`).
 
+### Current purchase architecture (July 18, 2026)
+
+The storefront uses a **payment-first** flow. Stripe Checkout is the order ledger, and the success page verifies the Checkout Session server-side before showing paid/confirmed copy. The unfinished custom Stripe webhook and Resend email pipeline are deferred and are not part of this deployment. Buyers should rely on Stripe's payment receipt; the storefront does not promise a custom confirmation or tracking email.
+
 ---
 
 ## Completed Actions
 
 ### 1. Repository Setup
 - ✅ Cloned repo to `/home/ethan/.openclaw/workspace/projects/unruly-human`
-- ✅ Confirmed project structure: Next.js 16.1.6 with TypeScript, Tailwind CSS 4
-- ✅ Dependencies: Stripe, Resend, Framer Motion, React 19
+- ✅ Confirmed project structure: Next.js 16.2.10 with TypeScript, Tailwind CSS 4
+- ✅ Dependencies: Stripe, Framer Motion, React 19
 
 ### 2. Vercel Account Configuration
 - ✅ Identified ETHAN team: `ethansbrewertons-projects` (team_ssdVvHuYfc3YWyjOIlqhkRLu)
 - ✅ Authenticated using `VERCEL_TOKEN_ETHAN`
 - ✅ Upgraded Vercel CLI from v39.4.2 to v51.2.1 (required for deployment)
-- ✅ User: `ethansbrewerton` (ethansbrewerton@gmail.com)
+- ✅ User: `ethansbrewerton`
 
 ### 3. Project Deployment
 - ✅ Linked project: `ethansbrewertons-projects/unruly-human`
@@ -61,22 +65,45 @@ Successfully migrated the Unruly Human Next.js application from the blocked ROY 
 ### Environment Variables (CRITICAL)
 The application requires the following environment variables to be configured in Vercel:
 
-1. **STRIPE_SECRET_KEY** (Required)
-   - Used in: `/api/checkout` and `/api/webhooks/stripe`
-   - Purpose: Server-side Stripe API authentication
+1. **STRIPE_SECRET_KEY** (Required in production)
+   - Used in: `/api/checkout` and `/success`
+   - Purpose: Create Checkout Sessions and verify the returned session before confirming payment
+   - Production gate: Must be a Stripe live-mode secret (`sk_live_...`) or live restricted key (`rk_live_...`). Test keys fail closed in production.
    - Action: Add via Vercel dashboard → Project Settings → Environment Variables
 
-2. **RESEND_API_KEY** (Required)
-   - Used in: `/api/webhooks/stripe` (for order confirmation emails)
-   - Purpose: Email notifications via Resend
+2. **SITE_URL** (Required in production)
+   - Example: `https://unruly.fashion`
+   - Purpose: Trusted HTTPS origin for Stripe success and cancellation redirects
+   - Validation: Must be an HTTPS origin only (no path, query, credentials, or fragment)
    - Action: Add via Vercel dashboard → Project Settings → Environment Variables
+
+The webhook and Resend integration are explicitly deferred. `RESEND_API_KEY` and a Stripe webhook signing secret are not required for this payment-first release.
+
+### Payment-first release gates (all required before release)
+
+- [ ] Configure a live `STRIPE_SECRET_KEY` and verify production Checkout creates a live Session.
+- [ ] Complete a controlled live purchase and verify the returned Session has `livemode === true`; the production success page must reject test-mode Sessions.
+- [ ] In Stripe Dashboard, manually enable **Customer emails → Successful payments**, then manually verify the setting and delivery behavior with the controlled live purchase.
+- [ ] Inspect Stripe Workbench event destinations and disable any obsolete or old event destination left from the removed webhook implementation, if one exists. Do not add a replacement webhook for this release.
+- [ ] Establish and test the manual fulfillment ledger runbook below.
+- [ ] A public support contact is a separate unresolved requirement. Do not publish or substitute a private email address.
+
+### Manual fulfillment ledger runbook
+
+Until durable webhook automation is intentionally designed and deployed, Stripe is the source ledger:
+
+1. At least once each business day, open Stripe Dashboard in live mode and filter **Payments** for successful, uncaptured, refunded, disputed, and failed payments since the previous review.
+2. For every successful Alloy 000 Bomber payment, open its Checkout Session and copy the Session ID, PaymentIntent ID, payment date, amount/currency, customer-provided contact, shipping address, and `size` metadata into the restricted fulfillment ledger. Never copy card data.
+3. Deduplicate on Checkout Session ID. Confirm `payment_status=paid`, `livemode=true`, amount `$300.00 USD`, product metadata `alloy-000-bomber`, schema version `1`, and a valid size before fulfillment.
+4. Mark the ledger row `ready`, `held`, `fulfilled`, `refunded`, or `disputed`; record assignee, timestamps, carrier/reference when fulfilled, and notes for any exception.
+5. Reconcile the ledger against Stripe successful payments daily. Escalate missing metadata, duplicate rows, refunds, and disputes before shipping. A success-page view alone is never fulfillment authorization.
 
 **How to add:**
 ```bash
 # Option 1: Via Vercel CLI
 export VERCEL_TOKEN=$VERCEL_TOKEN_ETHAN
 vercel env add STRIPE_SECRET_KEY production
-vercel env add RESEND_API_KEY production
+vercel env add SITE_URL production
 
 # Option 2: Via Dashboard
 # https://vercel.com/ethansbrewertons-projects/unruly-human/settings/environment-variables
@@ -104,20 +131,20 @@ vercel env add RESEND_API_KEY production
 ```
 
 ### Framework Detection
-- **Framework:** Next.js 16.1.6
+- **Framework:** Next.js 16.2.10
 - **Build Command:** `next build`
 - **Output Directory:** Next.js default
 - **Node Version:** 24.x (auto-detected)
 
 ### Build Output
-- Static pages: 3 (/, /_not-found, /success)
-- API routes: 2 (/api/checkout, /api/webhooks/stripe)
+- Pages: `/`, `/_not-found`, and server-verified `/success`
+- API routes: 1 (`/api/checkout`)
 - Build time: ~26 seconds
 - Build region: Washington, D.C. (iad1)
 
 ### Dependencies Requiring Secrets
-- `@stripe/stripe-js` & `stripe` → STRIPE_SECRET_KEY
-- `resend` → RESEND_API_KEY
+- `stripe` → `STRIPE_SECRET_KEY`
+- Checkout redirect configuration → `SITE_URL`
 
 ---
 
@@ -144,24 +171,27 @@ curl -I https://unruly-human.vercel.app
 ## Next Steps
 
 1. **Immediate (Critical):**
-   - [ ] Add `STRIPE_SECRET_KEY` environment variable
-   - [ ] Add `RESEND_API_KEY` environment variable
+   - [ ] Add a live `STRIPE_SECRET_KEY` environment variable (`sk_live_...` or least-privilege `rk_live_...`)
+   - [ ] Add `SITE_URL` as the canonical production HTTPS origin
+   - [ ] Verify a production Session reports `livemode === true`
+   - [ ] Manually enable and verify Stripe **Customer emails → Successful payments**
+   - [ ] Disable any obsolete Stripe event destination if one exists
+   - [ ] Validate the manual fulfillment ledger runbook
+   - [ ] Resolve a separate public support contact without exposing a private email
    - [ ] Verify checkout flow works at https://unruly-human.vercel.app
-   - [ ] Test Stripe webhook endpoint
 
 2. **Domain Configuration:**
    - [ ] Confirm if custom domain needed
    - [ ] If yes, add domain via Vercel dashboard
    - [ ] Update DNS records to point to Vercel
 
-3. **Stripe Webhook:**
-   - [ ] Update Stripe webhook URL to new domain
-   - [ ] Endpoint: `https://unruly-human.vercel.app/api/webhooks/stripe`
-   - [ ] Regenerate webhook secret if needed
+3. **Deferred automation:**
+   - [ ] Design a durable fulfillment ledger/outbox before adding a Stripe webhook
+   - [ ] Configure and verify Resend only when a custom email pipeline is intentionally deployed
 
 4. **Testing:**
    - [ ] Test full checkout flow
-   - [ ] Verify email notifications (Resend)
+   - [ ] Confirm unpaid, fake, and missing Checkout Session IDs do not show paid order copy
    - [ ] Test size guide modal functionality
    - [ ] Mobile responsiveness check
 

@@ -4,6 +4,8 @@ import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import Image from "next/image";
 import { useRef, useState, useEffect } from "react";
 
+import { isStripeCheckoutUrl } from "@/lib/purchase";
+
 const heroImages = [
   "/images/hero_lifestyle.jpg",
   "/images/pattern_detail.jpg", 
@@ -30,11 +32,31 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ size: selectedSize }),
       });
-      const { url } = await response.json();
-      if (url) window.location.href = url;
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message =
+          typeof payload === "object" &&
+          payload !== null &&
+          "error" in payload &&
+          typeof payload.error === "string"
+            ? payload.error
+            : "Checkout could not be started.";
+        throw new Error(message);
+      }
+
+      const url =
+        typeof payload === "object" && payload !== null && "url" in payload
+          ? payload.url
+          : null;
+      if (!isStripeCheckoutUrl(url)) {
+        throw new Error("Checkout returned an invalid payment link.");
+      }
+
+      window.location.assign(url);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown checkout error";
       console.error("Checkout error:", error);
-      alert("Something went wrong. Please try again.");
+      alert(`${message} Please try again.`);
     } finally {
       setIsLoading(false);
     }
