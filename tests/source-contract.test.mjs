@@ -29,11 +29,15 @@ test("success page is server-verified, requires live mode in production, and is 
   assert.match(page, /STRIPE_SECRET_KEY/);
   assert.match(page, /checkout\.sessions\.retrieve/);
   assert.match(page, /isPaidUnrulySession/);
+  assert.match(page, /isStripeMissingCheckoutSessionError/);
+  assert.match(page, /catch \(error\)[\s\S]*isStripeMissingCheckoutSessionError\(error\)[\s\S]*not-confirmed/);
   assert.match(page, /requireLiveMode/);
   assert.match(content, /confirmed.*not-confirmed.*unavailable/s);
   assert.match(content, /verification could not complete/i);
   assert.match(content, /payment may still be recorded with Stripe/i);
   assert.match(content, /refresh/i);
+  assert.doesNotMatch(page, /console\.error\(\s*error\s*\)/);
+  assert.doesNotMatch(page, /console\.error\([^\n]*,\s*error\s*\)/);
   assert.doesNotMatch(`${page}\n${content}`, /confirmation email|tracking information|support|receipt/i);
 });
 

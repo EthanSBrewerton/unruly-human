@@ -135,6 +135,33 @@ export function isCheckoutSessionId(value: unknown): value is string {
   );
 }
 
+export function isStripeMissingCheckoutSessionError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || Array.isArray(error)) {
+    return false;
+  }
+
+  const candidate = error as {
+    type?: unknown;
+    code?: unknown;
+    rawType?: unknown;
+    raw?: unknown;
+  };
+  const raw =
+    typeof candidate.raw === "object" &&
+    candidate.raw !== null &&
+    !Array.isArray(candidate.raw)
+      ? (candidate.raw as { type?: unknown; code?: unknown })
+      : undefined;
+
+  return (
+    ((candidate.type === "StripeInvalidRequestError" ||
+      candidate.type === "invalid_request_error" ||
+      candidate.rawType === "invalid_request_error") &&
+      candidate.code === "resource_missing") ||
+    (raw?.type === "invalid_request_error" && raw.code === "resource_missing")
+  );
+}
+
 export function isPaidUnrulySession(
   session: unknown,
   { requireLiveMode = false }: { requireLiveMode?: boolean } = {},

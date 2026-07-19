@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import {
   isCheckoutSessionId,
   isPaidUnrulySession,
+  isStripeMissingCheckoutSessionError,
   isStripeSecretKeyAllowed,
 } from "@/lib/purchase";
 
@@ -28,17 +29,21 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
     } else {
       try {
         const stripe = new Stripe(stripeSecretKey, {
-        apiVersion: "2026-01-28.clover",
-      });
+          apiVersion: "2026-01-28.clover",
+        });
         const session = await stripe.checkout.sessions.retrieve(sessionId);
         status = isPaidUnrulySession(session, {
           requireLiveMode: process.env.NODE_ENV === "production",
         })
           ? "confirmed"
           : "not-confirmed";
-      } catch {
-        console.error("Unable to verify Stripe Checkout Session.");
-        status = "unavailable";
+      } catch (error) {
+        if (isStripeMissingCheckoutSessionError(error)) {
+          status = "not-confirmed";
+        } else {
+          console.error("Unable to verify Stripe Checkout Session.");
+          status = "unavailable";
+        }
       }
     }
   }

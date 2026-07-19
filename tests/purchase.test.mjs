@@ -6,11 +6,36 @@ import {
   VALID_SIZES,
   buildCheckoutSessionParams,
   getCheckoutSiteOrigin,
+  isStripeMissingCheckoutSessionError,
   isPaidUnrulySession,
   isStripeCheckoutUrl,
   isStripeSecretKeyAllowed,
   parseCheckoutInput,
 } from "../src/lib/purchase.ts";
+
+test("classifies only Stripe invalid-request resource-missing errors as missing sessions", () => {
+  for (const error of [
+    { type: "StripeInvalidRequestError", code: "resource_missing" },
+    { type: "invalid_request_error", code: "resource_missing" },
+    { rawType: "invalid_request_error", code: "resource_missing" },
+    { raw: { type: "invalid_request_error", code: "resource_missing" } },
+  ]) {
+    assert.equal(isStripeMissingCheckoutSessionError(error), true);
+  }
+
+  for (const error of [
+    undefined,
+    null,
+    new Error("network failure"),
+    { type: "StripeAPIError", code: "resource_missing" },
+    { type: "StripeInvalidRequestError", code: "parameter_invalid_integer" },
+    { type: "StripeInvalidRequestError" },
+    { code: "resource_missing" },
+    { raw: { type: "api_error", code: "resource_missing" } },
+  ]) {
+    assert.equal(isStripeMissingCheckoutSessionError(error), false);
+  }
+});
 
 test("production accepts only Stripe live secret or restricted keys", () => {
   for (const key of ["sk_live_abc123", "rk_live_abc123"]) {
