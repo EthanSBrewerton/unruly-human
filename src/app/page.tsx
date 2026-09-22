@@ -2,6 +2,7 @@
 
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 
 const heroImages = [
@@ -67,12 +68,14 @@ export default function Home() {
           />
           <span className="text-xl tracking-[0.3em] font-light">UNRULY HUMAN</span>
         </div>
-        <a
-          href="#buy"
-          className="text-sm tracking-[0.2em] hover:opacity-60 transition-opacity"
-        >
-          SHOP
-        </a>
+        <div className="flex items-center gap-6 text-sm tracking-[0.2em]">
+          <Link href="/shop" className="hover:opacity-60 transition-opacity">
+            SHOP
+          </Link>
+          <a href="#buy" className="hidden sm:block hover:opacity-60 transition-opacity">
+            ALLOY 000
+          </a>
+        </div>
       </motion.nav>
 
       {/* Hero Section */}
