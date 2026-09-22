@@ -3,6 +3,8 @@ import {
   addCartLines,
   createCart,
   getCart,
+  isAllowedShopifyCart,
+  isAllowedShopifyMerchandise,
   removeCartLine,
   updateCartLine,
 } from "@/lib/shopify";
@@ -173,6 +175,7 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
+      if (!isAllowedShopifyCart(cart)) return badRequest();
       return NextResponse.json({ cart });
     }
 
@@ -180,10 +183,25 @@ export async function POST(request: NextRequest) {
     const quantity = normalizeQuantity(body.quantity);
     if (!merchandiseId || !quantity) return badRequest();
 
+    if (!(await isAllowedShopifyMerchandise(merchandiseId, ip))) {
+      return badRequest();
+    }
+
     const cartId = normalizeCartId(body.cartId);
+    if (cartId) {
+      const existingCart = await getCart(cartId, ip);
+      if (!existingCart) {
+        return NextResponse.json(
+          { cart: null, code: "INVALID_CART" },
+          { status: 409 }
+        );
+      }
+      if (!isAllowedShopifyCart(existingCart)) return badRequest();
+    }
     const cart = cartId
       ? await addCartLines(cartId, merchandiseId, quantity, ip)
       : await createCart(merchandiseId, quantity, ip);
+    if (!isAllowedShopifyCart(cart)) return badRequest();
     return NextResponse.json({ cart });
   } catch (error) {
     return serverError(error);
@@ -206,7 +224,18 @@ export async function PATCH(request: NextRequest) {
   if (!cartId || !lineId || !quantity) return badRequest();
 
   try {
-    const cart = await updateCartLine(cartId, lineId, quantity, buyerIp(request));
+    const ip = buyerIp(request);
+    const existingCart = await getCart(cartId, ip);
+    if (!existingCart) {
+      return NextResponse.json(
+        { cart: null, code: "INVALID_CART" },
+        { status: 409 }
+      );
+    }
+    if (!isAllowedShopifyCart(existingCart)) return badRequest();
+
+    const cart = await updateCartLine(cartId, lineId, quantity, ip);
+    if (!isAllowedShopifyCart(cart)) return badRequest();
     return NextResponse.json({ cart });
   } catch (error) {
     return serverError(error);
@@ -228,7 +257,18 @@ export async function DELETE(request: NextRequest) {
   if (!cartId || !lineId) return badRequest();
 
   try {
-    const cart = await removeCartLine(cartId, lineId, buyerIp(request));
+    const ip = buyerIp(request);
+    const existingCart = await getCart(cartId, ip);
+    if (!existingCart) {
+      return NextResponse.json(
+        { cart: null, code: "INVALID_CART" },
+        { status: 409 }
+      );
+    }
+    if (!isAllowedShopifyCart(existingCart)) return badRequest();
+
+    const cart = await removeCartLine(cartId, lineId, ip);
+    if (!isAllowedShopifyCart(cart)) return badRequest();
     return NextResponse.json({ cart });
   } catch (error) {
     return serverError(error);

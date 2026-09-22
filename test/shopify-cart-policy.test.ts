@@ -190,6 +190,43 @@ test("clicking a sparse option moves selection to a compatible available variant
   );
 });
 
+test("option changes preserve the current values of unrelated options when possible", () => {
+  const product = {
+    ...sparseProduct,
+    variants: [
+      {
+        ...sparseProduct.variants[1],
+        id: "gid://shopify/ProductVariant/blue-m",
+      },
+      {
+        ...sparseProduct.variants[0],
+        id: "gid://shopify/ProductVariant/red-m",
+        title: "Red / M",
+        selectedOptions: [
+          { name: "Color", value: "Red" },
+          { name: "Size", value: "M" },
+        ],
+      },
+      sparseProduct.variants[0],
+    ],
+  };
+
+  const variant = findCompatibleVariantForOption(
+    product,
+    "Size",
+    "M",
+    { Color: "Red", Size: "S" }
+  );
+
+  assert.equal(variant?.id, "gid://shopify/ProductVariant/red-m");
+  assert.deepEqual(
+    Object.fromEntries(
+      variant?.selectedOptions.map((option) => [option.name, option.value]) ?? []
+    ),
+    { Color: "Red", Size: "M" }
+  );
+});
+
 test("variant deep links accept Shopify IDs or their stable trailing key", () => {
   assert.equal(
     findInitialVariant(sparseProduct, "blue-m")?.id,

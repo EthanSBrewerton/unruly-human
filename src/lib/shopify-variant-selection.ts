@@ -56,9 +56,19 @@ export function isOptionValueAvailable(
 export function findCompatibleVariantForOption(
   product: ShopifyProduct,
   optionName: string,
-  value: string
+  value: string,
+  currentSelections: Record<string, string> = {}
 ) {
-  return product.variants.find(
+  const nextSelections = { ...currentSelections, [optionName]: value };
+  const preservingVariant = product.variants.find(
+    (variant) =>
+      variant.availableForSale &&
+      variant.selectedOptions.every(
+        (option) => nextSelections[option.name] === option.value
+      )
+  );
+
+  return preservingVariant ?? product.variants.find(
     (variant) =>
       variant.availableForSale &&
       variant.selectedOptions.some(

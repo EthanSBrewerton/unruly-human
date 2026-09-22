@@ -1,6 +1,6 @@
 import "server-only";
 import { SHOP_CATEGORIES } from "./shop-categories";
-import { selectUnrulyShirts } from "./unruly-shop-contract";
+import { isUnrulyShirt, selectUnrulyShirts } from "./unruly-shop-contract";
 import { hasShopifyStorefrontConfig } from "./shopify-discoverability";
 import { sanitizeProductDescription } from "./shopify-description";
 import type {
@@ -198,6 +198,7 @@ const CART_FRAGMENT = `
             product {
               title
               handle
+              productType
               featuredImage {
                 url
                 altText
@@ -243,6 +244,7 @@ const CART_LINES_SELECTION = `
           product {
             title
             handle
+            productType
             featuredImage {
               url
               altText
@@ -597,6 +599,37 @@ export async function getCart(
     ...data.cart,
     lines,
   };
+}
+
+export function isAllowedShopifyCart(cart: ShopifyCart) {
+  return cart.lines.every((line) => isUnrulyShirt(line.merchandise.product));
+}
+
+export async function isAllowedShopifyMerchandise(
+  merchandiseId: string,
+  buyerIp?: string | null
+) {
+  const data = await shopifyFetch<{
+    node: {
+      id: string;
+      product: { handle: string; productType: string };
+    } | null;
+  }>(
+    `
+      query CartMerchandiseProduct($merchandiseId: ID!) {
+        node(id: $merchandiseId) {
+          ... on ProductVariant {
+            id
+            product { handle productType }
+          }
+        }
+      }
+    `,
+    { merchandiseId },
+    { cache: "no-store", buyerIp }
+  );
+
+  return Boolean(data.node && isUnrulyShirt(data.node.product));
 }
 
 async function getCartLines(

@@ -74,6 +74,7 @@ export type ShopifyCartLine = {
     product: {
       title: string;
       handle: string;
+      productType: string;
       featuredImage: ShopifyImage | null;
     };
   };

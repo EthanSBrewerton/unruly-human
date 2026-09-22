@@ -476,7 +476,8 @@ export default function ShopClient({
                                 const variant = findCompatibleVariantForOption(
                                   product,
                                   option.name,
-                                  value
+                                  value,
+                                  selections[product.id]
                                 );
                                 const variantImage = variant?.image;
                                 setSelections((current) => ({
